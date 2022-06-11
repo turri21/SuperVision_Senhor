@@ -12,7 +12,7 @@ module audio (
 	output reg adma_irq_n,
 	output reg adma_read,
 	output [2:0] adma_bank,
-	
+
 	input [15:0] prescaler,
 
 	output [5:0] CH1,
@@ -71,6 +71,22 @@ assign adma_bank = adma_config[6:4];
 assign CH1 = (CH1_en ? CH1_out : 6'd0) + (adma_active && adma_config[2] ? adma_out : 6'd0) + (noise_en && noise_config[2] ? noise_out : 6'd0);
 assign CH2 = (CH2_en ? CH2_out : 6'd0) + (adma_active && adma_config[3] ? adma_out : 6'd0) + (noise_en && noise_config[3] ? noise_out : 6'd0);
 
+always_comb begin
+	case (ch1_vdiv[5:4])
+		2'b00: CH1_dc = 4'd1;  // 12.5%
+		2'b01: CH1_dc = 4'd3;  // 25%
+		2'b10: CH1_dc = 4'd7;  // 50%
+		2'b11: CH1_dc = 4'd11; // 75%
+	endcase
+
+	case (ch2_vdiv[5:4])
+		2'b00: CH2_dc = 4'd1;  // 12.5%
+		2'b01: CH2_dc = 4'd3;  // 25%
+		2'b10: CH2_dc = 4'd7;  // 50%
+		2'b11: CH2_dc = 4'd11; // 75%
+	endcase
+end
+
 always_ff @(posedge clk) begin : audio_clock
 
 	reg sys_div;
@@ -104,7 +120,7 @@ always_ff @(posedge clk) begin : audio_clock
 				underflow_ch2 <= 0;
 				ch2_mute <= 1;
 			end
-			
+
 			if (noise_timer > 8'd0)
 				noise_timer <= noise_timer - 8'd1;
 			if (noise_timer == 8'd1)
@@ -121,7 +137,7 @@ always_ff @(posedge clk) begin : audio_clock
 			lfsr <= {lfsr[13:0], lfsr_next};
 			noise_sum <= 0;
 		end
-			
+
 		if (sys_div) begin
 			CH1_sum <= CH1_sum + 1'd1;
 			CH2_sum <= CH2_sum + 1'd1;
@@ -185,7 +201,15 @@ always_ff @(posedge clk) begin : audio_clock
 					CH2_FRAME_LEN: begin ch2_timer        <= dbus_in; if (dbus_in == 0) underflow_ch2 <= 1; else ch2_mute <= 0; end
 					ADMA_ADDR_LO:  begin adma_addr[7:0]   <= dbus_in; end
 					ADMA_ADDR_HI:  begin adma_addr[15:8]  <= dbus_in; end
-					ADMA_LENGTH:   begin adma_length      <= dbus_in; if (dbus_in == 0 && adma_active) begin adma_length <= 0; adma_active <= 0; adma_irq_n <= 0; end end
+					ADMA_LENGTH:   begin adma_length      <= dbus_in;
+							if (adma_active) begin
+								if (dbus_in == 0) begin
+									adma_length <= 0;
+									adma_active <= 0;
+									adma_irq_n <= 0;
+								end
+							end
+						end
 					ADMA_CONFIG:   begin adma_config      <= dbus_in; end
 					ADMA_REQ:      begin adma_active      <= dbus_in[7]; adma_phase <= 4'd15; adma_sample <= 0; adma_read <= 1; adma_sample_pending <= 1; end
 					ADMA_ACK:      begin adma_irq_n       <= 1; end
@@ -219,23 +243,6 @@ always_ff @(posedge clk) begin : audio_clock
 		ch1_timer <= 0;
 		ch2_timer <= 0;
 	end
-end
-
-
-always_comb begin
-	case (ch1_vdiv[5:4])
-		2'b00: CH1_dc = 4'd1;  // 12.5%
-		2'b01: CH1_dc = 4'd3;  // 25%
-		2'b10: CH1_dc = 4'd7;  // 50%
-		2'b11: CH1_dc = 4'd11; // 75%
-	endcase
-
-	case (ch2_vdiv[5:4])
-		2'b00: CH2_dc = 4'd1;  // 12.5%
-		2'b01: CH2_dc = 4'd3;  // 25%
-		2'b10: CH2_dc = 4'd7;  // 50%
-		2'b11: CH2_dc = 4'd11; // 75%
-	endcase
 end
 
 endmodule

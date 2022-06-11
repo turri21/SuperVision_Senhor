@@ -331,11 +331,9 @@ wire [127:0] default_palette = 128'h87BA6B_6BA378_386B82_384052_0000_0000;
 logic [2:0][7:0] palette[4];
 
 assign palette[0] = status[7] ? user_palette[127:104] : default_palette[127:104];
-assign palette[1] = status[7] ? user_palette[103:80] : default_palette[103:80];
-assign palette[2] = status[7] ? user_palette[79:56] : default_palette[79:56];
-assign palette[3] = status[7] ? user_palette[55:32] : default_palette[55:32];
-
-//assign palette = '{24'h87BA6B, 24'h6BA378, 24'h386B82, 24'h384052}; 
+assign palette[1] = status[7] ? user_palette[103:80]  : default_palette[103:80];
+assign palette[2] = status[7] ? user_palette[79:56]   : default_palette[79:56];
+assign palette[3] = status[7] ? user_palette[55:32]   : default_palette[55:32];
 
 always @(posedge clk_vid) begin
 	if (CE_PIXEL) begin
@@ -346,7 +344,7 @@ always @(posedge clk_vid) begin
 
 		if (~vblank && ~hblank)
 			vbuffer_addr <= vbuffer_addr + 1'd1;
-		
+
 		if (vsync)
 			vbuffer_addr <= 0;
 	end
@@ -354,14 +352,14 @@ end
 
 
 dpram #(.data_width(2), .addr_width(15)) vbuffer (
-	.clock(clk_sys),
+	.clock      (clk_sys),
 
-	.address_a(vbuffer_addr - 1'd1),
-	.data_a(last_pixel),
-	.wren_a(~vblank && ~hblank && CE_PIXEL),
+	.address_a  (vbuffer_addr - 1'd1),
+	.data_a     (last_pixel),
+	.wren_a     (~vblank && ~hblank && CE_PIXEL),
 
-	.address_b(vbuffer_addr),
-	.q_b(prev_pixel)
+	.address_b  (vbuffer_addr),
+	.q_b        (prev_pixel)
 );
 
 always @(posedge clk_sys) begin
@@ -399,39 +397,35 @@ sdram cart_rom
 video_freak video_freak
 (
 	.*,
-	.VGA_DE_IN  (vga_de),
-	.VGA_DE     (VGA_DE),
-
-	.ARX        ((!ar) ? 12'd1 : (ar - 1'd1)),
-	.ARY        ((!ar) ? 12'd1 : 12'd0),
-	.CROP_SIZE  (0),
-	.CROP_OFF   (0),
-	.SCALE      (status[11:10])
+	.VGA_DE_IN      (vga_de),
+	.VGA_DE         (VGA_DE),
+	.ARX            ((!ar) ? 12'd1 : (ar - 1'd1)),
+	.ARY            ((!ar) ? 12'd1 : 12'd0),
+	.CROP_SIZE      (0),
+	.CROP_OFF       (0),
+	.SCALE          (status[11:10])
 );
 
 video_mixer #(640, 0) mixer
 (
 	.*,
-	.CE_PIXEL   (),
-	.hq2x       (scale == 1),
-	.scandoubler(scale || forced_scandoubler),
-	.gamma_bus  (gamma_bus),
-
-	.R          (red),
-	.G          (green),
-	.B          (blue),
-
-	.HSync      (hsync),
-	.VSync      (vsync),
-	.HBlank     (hblank),
-	.VBlank     (vblank),
-
-	.VGA_R      (VGA_R),
-	.VGA_G      (VGA_G),
-	.VGA_B      (VGA_B),
-	.VGA_VS     (VGA_VS),
-	.VGA_HS     (VGA_HS),
-	.VGA_DE     (vga_de)
+	.CE_PIXEL       (),
+	.hq2x           (scale == 1),
+	.scandoubler    (scale || forced_scandoubler),
+	.gamma_bus      (gamma_bus),
+	.R              (red),
+	.G              (green),
+	.B              (blue),
+	.HSync          (hsync),
+	.VSync          (vsync),
+	.HBlank         (hblank),
+	.VBlank         (vblank),
+	.VGA_R          (VGA_R),
+	.VGA_G          (VGA_G),
+	.VGA_B          (VGA_B),
+	.VGA_VS         (VGA_VS),
+	.VGA_HS         (VGA_HS),
+	.VGA_DE         (vga_de)
 );
 
 endmodule

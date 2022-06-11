@@ -18,7 +18,7 @@ module dma
 	reg [7:0] dma_length;
 	reg [3:0] dma_phase;
 	reg [2:0] lcd_div;
-	
+
 	assign dma_en = dma_started;
 	wire lcd_ce = lcd_div == 5 && lcd_en;
 
@@ -43,7 +43,7 @@ module dma
 			if (~cpu_rwn && dma_cs) begin
 				case(AB)
 					6'h08: cbus_addr[7:0] <= data_in;
-					6'h09: cbus_addr[15:0] <= data_in;
+					6'h09: cbus_addr[15:8] <= data_in;
 					6'h0A: vbus_addr[7:0] <= data_in;
 					6'h0B: {dma_dir, vbus_addr[12:8]} <= {data_in[6], data_in[4:0]};
 					6'h0C: dma_length <= data_in;
