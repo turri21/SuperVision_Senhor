@@ -324,21 +324,24 @@ supervision supervision
 	.link_ddr   (link_ddr)
 );
 
-logic [15:0][7:0] user_palette[4];
+logic [127:0] user_palette;
+
+wire [127:0] default_palette = 128'h87BA6B_6BA378_386B82_384052_0000_0000;
+
 logic [2:0][7:0] palette[4];
-assign palette = '{24'h87BA6B, 24'h6BA378, 24'h386B82, 24'h384052}; 
+
+assign palette[0] = status[7] ? user_palette[127:104] : default_palette[127:104];
+assign palette[1] = status[7] ? user_palette[103:80] : default_palette[103:80];
+assign palette[2] = status[7] ? user_palette[79:56] : default_palette[79:56];
+assign palette[3] = status[7] ? user_palette[55:32] : default_palette[55:32];
+
+//assign palette = '{24'h87BA6B, 24'h6BA378, 24'h386B82, 24'h384052}; 
 
 always @(posedge clk_vid) begin
 	if (CE_PIXEL) begin
 		red   <= ~status[20] ? (({1'b0, palette[pixel][2]} + palette[prev_pixel][2]) >> 1'd1) : palette[pixel][2];
 		green <= ~status[20] ? (({1'b0, palette[pixel][1]} + palette[prev_pixel][1]) >> 1'd1) : palette[pixel][1];
 		blue  <= ~status[20] ? (({1'b0, palette[pixel][0]} + palette[prev_pixel][0]) >> 1'd1) : palette[pixel][0];
-		// case (pixel)
-		// 	2'b00: { red, green, blue } <= 24'h87BA6B;
-		// 	2'b01: begin { red, green, blue } <= 24'h6BA378; end
-		// 	2'b10: begin { red, green, blue } <= 24'h386B82; end
-		// 	2'b11: begin { red, green, blue } <= 24'h384052; end
-		// endcase
 		last_pixel <= pixel;
 
 		if (~vblank && ~hblank)
@@ -361,29 +364,12 @@ dpram #(.data_width(2), .addr_width(15)) vbuffer (
 	.q_b(prev_pixel)
 );
 
-// rom cart(
-// 	.clk(clk_sys),
-// 	.addr(rom_addr),
-// 	.dout(rom_dout),
-// 	// .link_port(link_data),
-// 	// .rom_hi(rom_hi),
-// 	.cs(~rom_cs),
-// 	.wr(ioctl_wr),
-// 	.rom_init(ioctl_download),
-// 	.rom_init_clk(clk_sys),
-// 	.rom_init_address(ioctl_addr),
-// 	.rom_init_data(ioctl_dout)
-// );
-
-
 always @(posedge clk_sys) begin
 	if (rom_download && ioctl_wr)
 		rom_mask <= ioctl_addr[18:0];
+	if (palette_download)
+		user_palette[{~ioctl_addr[3:0], 3'b000}+:8] <= ioctl_dout;
 end
-
-//{(bank[2] ? 4'b1111 : link_data[3:0]), bank[0], rom_addr[13:0]}
-// wire [18:0] magnum_addr = {(rom_bank[2] ? 4'b1111 : link_data[3:0]), rom_bank[0], rom_addr[13:0]};
-// wire [18:0] rom_addr_mapped = |rom_mask[18:17] && ~rom_high ? magnum_addr : rom_addr;
 
 sdram cart_rom
 (

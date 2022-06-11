@@ -4,7 +4,7 @@ module dma
 	input ce,
 	input reset,
 	input [5:0] AB,
-	input cpu_rnw,
+	input cpu_rwn,
 	input dma_cs,
 	input lcd_en,
 	input [7:0] data_in,
@@ -17,13 +17,9 @@ module dma
 	reg dma_started;
 	reg [7:0] dma_length;
 	reg [3:0] dma_phase;
-	//reg dma_dir;
 	reg [2:0] lcd_div;
 	
-	// wire [15:0] write_addr = dma_dir ? {3'b000, vbus_addr} : cbus_addr;
-	// wire [15:0] read_addr = ~dma_dir ? {3'b000, vbus_addr} : cbus_addr;
-	// assign dma_addr = dma_rwn ? read_addr : write_addr;
-	assign dma_en = dma_started & ~lcd_ce;
+	assign dma_en = dma_started;
 	wire lcd_ce = lcd_div == 5 && lcd_en;
 
 	always_ff @(posedge clk) begin
@@ -32,7 +28,7 @@ module dma
 			if (lcd_div == 5)
 				lcd_div <= 0;
 
-			if (dma_en) begin
+			if (dma_started && ~lcd_ce) begin
 				cbus_addr <= cbus_addr + 1'd1;
 				vbus_addr <= vbus_addr + 1'd1;
 				dma_phase <= dma_phase - 1'd1;
@@ -44,7 +40,7 @@ module dma
 				end
 			end
 
-			if (~cpu_rnw && dma_cs) begin
+			if (~cpu_rwn && dma_cs) begin
 				case(AB)
 					6'h08: cbus_addr[7:0] <= data_in;
 					6'h09: cbus_addr[15:0] <= data_in;
