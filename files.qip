@@ -1,9 +1,9 @@
-# set_global_assignment -name SDC_FILE Supervision.sdc
+set_global_assignment -name SDC_FILE Supervision.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE Supervision.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sv_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/lcd.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/audio.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/dma.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram.sv
 set_global_assignment -name QIP_FILE rtl/r65c02_tc/r65c02.qip
 set_global_assignment -name VHDL_FILE rtl/bram.vhd
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram.sv

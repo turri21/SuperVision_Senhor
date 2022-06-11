@@ -6,6 +6,7 @@ module supervision
 	input [7:0]         rom_dout,
 	input [3:0]         user_in,
 	input               large_rom,
+	input               compat60,
 	output              hsync,
 	output              hblank,
 	output              vsync,
@@ -24,7 +25,6 @@ reg [1:0] sys_div = 0;
 reg irq_pending = 0;
 reg [7:0] open_bus = 8'hFF;
 reg [15:0] nmi_clk;
-reg [7:0] DI;
 reg irq_timer;
 reg old_nmi_clk_15;
 reg nmi_latch = 0;
@@ -133,7 +133,6 @@ always_ff @(posedge clk_sys) begin
 		end
 
 		open_bus <= ~cpu_we ? DII : DO;
-		DI <= DII;
 
 		// System Register writes
 		if (sys_cs) begin
@@ -161,7 +160,6 @@ always_ff @(posedge clk_sys) begin
 	end
 
 	if (reset) begin
-		DI <= 0;
 		irq_timer <= 0;
 		irq_pending <= 0;
 		irq_timer_len <= 0;
@@ -231,7 +229,9 @@ audio audio
 lcd lcd
 (
 	.clk            (clk_sys),
-	.ce             (phi2),
+	.ce_4mhz        (phi2),
+	.ce_8mhz        (phi1 || phi2),
+	.compat60       (compat60),
 	.reset          (reset),
 	.lcd_cs         (sys_cs),
 	.cpu_rwn        (~cpu_we),

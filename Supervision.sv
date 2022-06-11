@@ -210,6 +210,7 @@ localparam CONF_STR = {
 	"-;",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[20],Flickerblend,On,Off;",
+	"O[21],Framerate,60hz,Original;",
 	"O23,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
 	"OAB,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"-;",
@@ -246,7 +247,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 	.buttons(buttons),
 	.status(status),
-	.status_menumask({status[5]}),
+	.status_menumask({~status[7]}),
 
 	.ps2_key(ps2_key),
 	.joystick_0(joystick_0),
@@ -258,8 +259,6 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.ioctl_wait(ioctl_wait),
 	.ioctl_index(ioctl_index)
 );
-
-///////////////////////   CLOCKS   ///////////////////////////////
 
 wire clk_sys;
 wire clk_vid; // Make a different clock to seperate intent in case the video rate needs change
@@ -286,7 +285,7 @@ wire hblank;
 wire vblank;
 wire vga_de;
 
-wire [7:0] red, green, blue;
+wire [8:0] red, green, blue;
 wire palette_download = (ioctl_index[5:0] == 3) && ioctl_download;
 wire reset = RESET | status[0] | buttons[1] | rom_download;
 
@@ -309,6 +308,7 @@ supervision supervision
 	.joystick   (joystick_0),
 	.rom_dout   (rom_dout),
 	.user_in    (USER_IN[3:0]),
+	.compat60   (~status[21]),
 	.large_rom  (|rom_mask[18:17]),
 	.hsync      (hsync),
 	.vsync      (vsync),
@@ -324,7 +324,7 @@ supervision supervision
 	.link_ddr   (link_ddr)
 );
 
-logic [127:0] user_palette;
+logic [127:0] user_palette = 128'h87BA6B_6BA378_386B82_384052_0000_0000;
 
 wire [127:0] default_palette = 128'h87BA6B_6BA378_386B82_384052_0000_0000;
 
@@ -413,9 +413,9 @@ video_mixer #(640, 0) mixer
 	.hq2x           (scale == 1),
 	.scandoubler    (scale || forced_scandoubler),
 	.gamma_bus      (gamma_bus),
-	.R              (red),
-	.G              (green),
-	.B              (blue),
+	.R              (red[7:0]),
+	.G              (green[7:0]),
+	.B              (blue[7:0]),
 	.HSync          (hsync),
 	.VSync          (vsync),
 	.HBlank         (hblank),
