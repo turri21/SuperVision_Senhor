@@ -28,7 +28,7 @@ localparam PHYS_WIDTH = 9'd160;
 localparam PHYS_HEIGHT = 9'd160;
 
 wire ce = compat60 ? ce_8mhz : ce_4mhz;
-wire [8:0] h_width = compat60 ? H_WIDTH_COMPAT : H_WIDTH;
+wire [8:0] h_w = compat60 ? H_WIDTH_COMPAT : H_WIDTH;
 
 reg [7:0] lcd_xsize, lcd_ysize, lcd_xscroll, lcd_yscroll;
 reg lcd_off_latch;
@@ -36,7 +36,6 @@ reg wrapped;
 reg [9:0] wrap_offset;
 reg [8:0] hblank_start, hblank_end, vblank_start, vblank_end, vpos, hpos;
 reg [31:0] dot_count, frame_len;
-reg force_resync;
 
 wire [9:0] vpos_off = (vpos - vblank_end) + lcd_yscroll;
 wire [9:0] hpos_off = (hpos - hblank_end) + lcd_xscroll;
@@ -63,10 +62,10 @@ assign ce_pix = ce;
 
 reg [7:0] vb;
 
-wire hblank_im = force_resync || hpos <= hblank_end || hpos > hblank_end + PHYS_WIDTH;
-wire vblank_im = force_resync || vpos < vblank_end || vpos >= vblank_end + PHYS_HEIGHT;
+wire hblank_im = hpos <= hblank_end || hpos > hblank_end + PHYS_WIDTH;
+wire vblank_im = vpos < vblank_end || vpos >= vblank_end + PHYS_HEIGHT;
 assign vsync = vpos < 2 || vpos > V_HEIGHT - 1'd1; // Catch the uneven line in vsync to see if it helps
-assign hsync = hpos < 16 || hpos > (h_width - 8'd16);
+assign hsync = hpos < 16 || hpos > (h_w - 8'd16);
 
 
 always_ff @(posedge clk) begin
@@ -82,23 +81,23 @@ always_ff @(posedge clk) begin
 
 		dot_count <= dot_count + 1'd1;
 		hpos <= hpos + 1'd1;
-		if (hpos == (h_width - 1'd1)) begin
+		if (hpos == (h_w - 1'd1)) begin
 			hpos <= 0;
 			vpos <= vpos + 1'd1;
 		end
 
 		// Synchronize with real frame, we'll see how it goes.
-		if ((compat60 ? 
-			(hpos == (h_width - 1'd1) && vpos == (V_HEIGHT - 1'd1)) :
-			(dot_count >= frame_len)) || (old_compat != compat60)) begin
+		if ((compat60 ?
+			(hpos == (h_w - 1'd1) && vpos == (V_HEIGHT - 1'd1)) :
+			(dot_count >= frame_len)
+			) || (old_compat != compat60)) begin
 			hpos <= 0;
 			vpos <= 0;
 			dot_count <= 0;
-			hblank_end <= (h_width - PHYS_WIDTH) >> 1'd1;
+			hblank_end <= (h_w - PHYS_WIDTH) >> 1'd1;
 			vblank_end <= (V_HEIGHT - PHYS_HEIGHT) >> 1'd1;
 			lcd_off_latch <= lcd_off;
 			frame_len <= ((lcd_xsize[7:2] + 1'd1) * lcd_ysize * 12) - 1'd1;
-			force_resync <= (old_compat != compat60);
 		end
 
 		if (lcd_cs && ~cpu_rwn) begin
@@ -114,7 +113,7 @@ always_ff @(posedge clk) begin
 	if (reset) begin
 		lcd_xscroll <= 0;
 		lcd_yscroll <= 0;
-		hblank_end <= (h_width - lcd_xsize) >> 1'd1;
+		hblank_end <= (h_w - lcd_xsize) >> 1'd1;
 		vblank_end <= (V_HEIGHT - lcd_ysize) >> 1'd1;
 		lcd_off_latch <= 1;
 		// Do not reset these registers intentionally
