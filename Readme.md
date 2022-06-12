@@ -1,4 +1,5 @@
 # Watara Supervision for MiSTer
+Based upon initial work by Pierco, rewritten by Jamie Blanks.
 
 An implementation of the unfortunate GameBoy clone, the Watara SuperVision. No boot ROMs are required and there is no additional setup.
 

@@ -1,22 +1,21 @@
 module audio (
-	input clk, // clk_sys
-	input ce,
-	input reset,
-	input snd_cs,
-	input cpu_rwn,
-	input [5:0] AB,
-	input [7:0] dbus_in,
+	input               clk, // clk_sys
+	input               ce,
+	input               reset,
+	input               snd_cs,
+	input               cpu_rwn,
+	input  [5:0]        AB,
+	input  [7:0]        dbus_in,
+	input  [15:0]       prescaler,
+	input               adma_irq_en,
 
-	input adma_irq_en,
-	output reg [15:0] adma_addr,
-	output reg adma_irq_n,
-	output reg adma_read,
-	output [2:0] adma_bank,
+	output reg [15:0]   adma_addr,
+	output reg          adma_irq_n,
+	output reg          adma_read,
+	output [2:0]        adma_bank,
 
-	input [15:0] prescaler,
-
-	output [5:0] CH1,
-	output [5:0] CH2
+	output [3:0]        CH1,
+	output [3:0]        CH2
 );
 
 typedef enum bit[5:0] {
@@ -52,8 +51,6 @@ reg [7:0] noise_vdiv, noise_timer, noise_config, ch1_vdiv, ch2_vdiv;
 reg [7:0] CH1_dlength, CH2_dlength, ch1_timer, ch2_timer;
 reg [16:0] CH1_sum, CH2_sum, noise_sum, adma_sum;
 
-wire prescaler_overflow = &prescaler;
-
 wire [3:0] CH1_dc, CH2_dc; // duty cycle
 wire [3:0] adma_out = adma_sample_pending ? adma_sample[7:4] : adma_sample[3:0];
 wire [16:0] noise_div = (17'd8 << noise_vdiv[7:4]) - 1'd1;
@@ -67,9 +64,14 @@ wire CH1_en = ~ch1_mute || ch1_vdiv[6] ? 1'b1 : 1'b0;
 wire CH2_en = ~ch2_mute || ch2_vdiv[6] ? 1'b1 : 1'b0;
 wire noise_en = ~noise_mute || noise_config[1] ? noise_config[4] : 1'b0;
 
+// Clamp to 4 bits (real system had a 4 bit dac and did this)
+wire [5:0] ch1_unclamped = (CH1_en ? CH1_out : 6'd0) + (adma_active && adma_config[2] ? adma_out : 6'd0) + (noise_en && noise_config[2] ? noise_out : 6'd0);
+wire [5:0] ch2_unclamped = (CH2_en ? CH2_out : 6'd0) + (adma_active && adma_config[3] ? adma_out : 6'd0) + (noise_en && noise_config[3] ? noise_out : 6'd0);
+
+assign CH1 = |ch1_unclamped[5:4] ? 4'hF : ch1_unclamped[3:0];
+assign CH2 = |ch2_unclamped[5:4] ? 4'hF : ch2_unclamped[3:0];
+
 assign adma_bank = adma_config[6:4];
-assign CH1 = (CH1_en ? CH1_out : 6'd0) + (adma_active && adma_config[2] ? adma_out : 6'd0) + (noise_en && noise_config[2] ? noise_out : 6'd0);
-assign CH2 = (CH2_en ? CH2_out : 6'd0) + (adma_active && adma_config[3] ? adma_out : 6'd0) + (noise_en && noise_config[3] ? noise_out : 6'd0);
 
 always_comb begin
 	case (ch1_vdiv[5:4])
@@ -94,46 +96,32 @@ always_ff @(posedge clk) begin : audio_clock
 	reg ch2_clk;
 	reg [3:0] ch1_phase;
 	reg [3:0] ch2_phase;
-	reg underflow_ch1;
-	reg underflow_ch2;
-	reg underflow_noise;
+	reg old_ps15;
 
 	if (ce) begin // CPU CLK
 
 		sys_div <= ~sys_div;
+		old_ps15 <= prescaler[15];
 
-		if (prescaler_overflow) begin
-			if (ch1_timer > 8'd0)
+		if (old_ps15 && ~prescaler[15]) begin
+			if (|ch1_timer)
 				ch1_timer <= ch1_timer - 8'd1;
-			if (ch1_timer == 8'd1)
-				underflow_ch1 <= 1;
-			if (underflow_ch1) begin
-				underflow_ch1 <= 0;
+			if (~|ch1_timer[7:1])
 				ch1_mute <= 1;
-			end
 
-			if (ch2_timer > 8'd0)
+			if (|ch2_timer > 8'd0)
 				ch2_timer <= ch2_timer - 8'd1;
-			if (ch2_timer == 8'd1)
-				underflow_ch2 <= 1;
-			if (underflow_ch2) begin
-				underflow_ch2 <= 0;
+			if (~|ch2_timer[7:1])
 				ch2_mute <= 1;
-			end
 
-			if (noise_timer > 8'd0)
+			if (|noise_timer > 8'd0)
 				noise_timer <= noise_timer - 8'd1;
-			if (noise_timer == 8'd1)
-				underflow_noise <= 1;
-			if (underflow_noise) begin
-				underflow_noise <= 0;
+			if (~|noise_timer[7:1])
 				noise_mute <= 1;
-			end
 		end
 
-		// end
 		noise_sum <= noise_sum + 1'd1;
-		if (noise_sum == noise_div) begin
+		if (noise_sum >= noise_div) begin
 			lfsr <= {lfsr[13:0], lfsr_next};
 			noise_sum <= 0;
 		end
@@ -167,7 +155,7 @@ always_ff @(posedge clk) begin : audio_clock
 
 		if (adma_active) begin
 			adma_sum <= adma_sum + 1'd1;
-			if (adma_sum == ((17'd256 << adma_config[1:0]) - 1'd1)) begin
+			if (adma_sum >= ((17'd256 << adma_config[1:0]) - 1'd1)) begin
 				adma_sum <= 0;
 				if (adma_sample_pending) begin
 					adma_sample_pending <= 0;
@@ -194,11 +182,11 @@ always_ff @(posedge clk) begin : audio_clock
 					CH1_FREQ_LOW:  begin ch1_freq[7:0]    <= dbus_in; CH1_sum <= 0; end
 					CH1_FREQ_HIGH: begin ch1_freq[10:8]   <= dbus_in[2:0]; CH1_sum <= 0; end
 					CH1_VDUTY:     begin ch1_vdiv         <= dbus_in; if (dbus_in[6] && ch1_timer > 0) CH1_sum <= 0; end
-					CH1_FRAME_LEN: begin ch1_timer        <= dbus_in; if (dbus_in == 0) underflow_ch1 <= 1; else ch1_mute <= 0; end
+					CH1_FRAME_LEN: begin ch1_timer        <= dbus_in; if (dbus_in != 0) ch1_mute <= 0; end
 					CH2_FREQ_LOW:  begin ch2_freq[7:0]    <= dbus_in; CH2_sum <= 0; end
 					CH2_FREQ_HIGH: begin ch2_freq[10:8]   <= dbus_in[2:0]; CH2_sum <= 0; end
 					CH2_VDUTY:     begin ch2_vdiv         <= dbus_in; if (dbus_in[6] && ch2_timer > 0) CH2_sum <= 0; end
-					CH2_FRAME_LEN: begin ch2_timer        <= dbus_in; if (dbus_in == 0) underflow_ch2 <= 1; else ch2_mute <= 0; end
+					CH2_FRAME_LEN: begin ch2_timer        <= dbus_in; if (dbus_in != 0) ch2_mute <= 0; end
 					ADMA_ADDR_LO:  begin adma_addr[7:0]   <= dbus_in; end
 					ADMA_ADDR_HI:  begin adma_addr[15:8]  <= dbus_in; end
 					ADMA_LENGTH:   begin adma_length      <= dbus_in;
@@ -214,16 +202,16 @@ always_ff @(posedge clk) begin : audio_clock
 					ADMA_REQ:      begin adma_active      <= dbus_in[7]; adma_phase <= 4'd15; adma_sample <= 0; adma_read <= 1; adma_sample_pending <= 1; end
 					ADMA_ACK:      begin adma_irq_n       <= 1; end
 					NOISE_VDIV, 6'h2c:    begin noise_vdiv       <= dbus_in; end
-					NOISE_LENGTH, 6'h2d:  begin noise_timer      <= dbus_in; noise_mute <= 0; end
-					NOISE_CONFIG, 6'h2E:  begin noise_config     <= dbus_in; lfsr <= 15'h7FFF; end
+					NOISE_LENGTH, 6'h2d:  begin noise_timer      <= dbus_in; if (dbus_in != 0) noise_mute <= 0; end
+					NOISE_CONFIG, 6'h2E:  begin noise_config     <= dbus_in; lfsr <= 15'h7FFF; noise_sum <= 0; end
 				endcase
 			end else begin
 				if (AB == ADMA_ACK)
 					adma_irq_n <= 1;
 			end
 		end
-
 	end
+
 	if (reset) begin
 		adma_sample_pending <= 0;
 		adma_sample <= 0;

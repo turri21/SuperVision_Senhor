@@ -181,11 +181,11 @@ assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DD
 
 assign VGA_SL = scale ? scale - 1'd1 : 2'd0;
 assign VGA_F1 = 0;
-assign VGA_SCALER= 0;
+assign VGA_SCALER = 0;
 
 assign AUDIO_S = 0;
 
-assign AUDIO_MIX = 0;
+assign AUDIO_MIX = status[23:22];
 
 assign LED_DISK = 0;
 assign LED_POWER = 0;
@@ -204,15 +204,16 @@ wire [1:0] ar = status[122:121];
 
 `include "build_id.v"
 localparam CONF_STR = {
-	"Supervision;;",
+	"SuperVision;;",
 	"-;",
 	"F1,binsv,Load Cartridge;",
 	"-;",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[20],Flickerblend,On,Off;",
 	"O[21],Framerate,60hz,Original;",
-	"O23,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
-	"OAB,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+	"O[3:2],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
+	"O[11:10],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+	"O[23:22],Center Audio,Off,25%,50%,100%;",
 	"-;",
 	"O7,Custom Palette,Off,On;",
 	"D0FC3,SGBGBP,Load Palette;",
