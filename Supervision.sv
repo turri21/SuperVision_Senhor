@@ -276,7 +276,7 @@ pll pll
 
 assign clk_vid = clk_sys;
 
-reg ce_pix = 1'b1;
+wire ce_pix;
 wire freeze_sync;
 
 wire hsync;
@@ -317,7 +317,7 @@ supervision supervision
 	.audio_r    (AUDIO_R),
 	.audio_l    (AUDIO_L),
 	.pixel      (pixel),
-	.pix_ce     (CE_PIXEL),
+	.pix_ce     (ce_pix),
 	.addr_bus   (rom_addr),
 	.rom_read   (rom_cs),
 	.link_data  (link_data),
@@ -336,7 +336,7 @@ assign palette[2] = status[7] ? user_palette[79:56]   : default_palette[79:56];
 assign palette[3] = status[7] ? user_palette[55:32]   : default_palette[55:32];
 
 always @(posedge clk_vid) begin
-	if (CE_PIXEL) begin
+	if (ce_pix) begin
 		red   <= ~status[20] ? (({1'b0, palette[pixel][2]} + palette[prev_pixel][2]) >> 1'd1) : palette[pixel][2];
 		green <= ~status[20] ? (({1'b0, palette[pixel][1]} + palette[prev_pixel][1]) >> 1'd1) : palette[pixel][1];
 		blue  <= ~status[20] ? (({1'b0, palette[pixel][0]} + palette[prev_pixel][0]) >> 1'd1) : palette[pixel][0];
@@ -409,7 +409,7 @@ video_freak video_freak
 video_mixer #(640, 0) mixer
 (
 	.*,
-	.CE_PIXEL       (),
+	.CE_PIXEL       (CE_PIXEL),
 	.hq2x           (scale == 1),
 	.scandoubler    (scale || forced_scandoubler),
 	.gamma_bus      (gamma_bus),
