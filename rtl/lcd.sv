@@ -2,8 +2,7 @@ module lcd
 (
 
 	input           clk,
-	input           ce_4mhz,
-	input           ce_8mhz,
+	input           ce,
 	input           reset,
 	input           lcd_cs,
 	input           cpu_rwn,
@@ -22,12 +21,11 @@ module lcd
 );
 
 localparam H_WIDTH = 9'd300;
-localparam H_WIDTH_COMPAT = 9'd508;
+localparam H_WIDTH_COMPAT = 9'd254;
 localparam V_HEIGHT = 9'd262;
 localparam PHYS_WIDTH = 9'd160;
 localparam PHYS_HEIGHT = 9'd160;
 
-wire ce = compat60 ? ce_8mhz : ce_4mhz;
 wire [8:0] h_w = compat60 ? H_WIDTH_COMPAT : H_WIDTH;
 
 reg [7:0] lcd_xsize, lcd_ysize, lcd_xscroll, lcd_yscroll;

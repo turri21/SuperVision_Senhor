@@ -229,8 +229,7 @@ audio audio
 lcd lcd
 (
 	.clk            (clk_sys),
-	.ce_4mhz        (phi2),
-	.ce_8mhz        (phi1 || phi2),
+	.ce             (phi2),
 	.compat60       (compat60),
 	.reset          (reset),
 	.lcd_cs         (sys_cs),
