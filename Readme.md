@@ -1,3 +1,8 @@
+-=(Supervision_Senhor notes)=-
+
+Tested: Working Video 720p, 1080p & Sound.
+
+___
 # Watara Supervision for MiSTer
 Based upon initial work by Pierco, rewritten by Jamie Blanks.
 
